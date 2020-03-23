@@ -7,7 +7,9 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.registers = [0] * 8
+        self.pc = None
 
     def load(self):
         """Load a program into memory."""
@@ -29,7 +31,6 @@ class CPU:
         for instruction in program:
             self.ram[address] = instruction
             address += 1
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -60,6 +61,62 @@ class CPU:
 
         print()
 
+    def ram_read(idx):
+        return self.memory[idx]
+
+    def ram_write(idx, val):
+        self.memory[idx] = val
+
+    def opcode_to_asm(self, opcode):
+        return {
+            0b10100000: "ADD",
+            0b10100001: "SUB",
+            0b10100010: "MUL",
+            0b10100011: "DIV",
+            0b10100100: "MOD",
+            0b01100101: "INC",
+            0b01100110: "DEC",
+            0b10100111: "CMP",
+            0b10101000: "AND",
+            0b01101001: "NOT",
+            0b10101010: "OR",
+            0b10101011: "XOR",
+            0b10101100: "SHL",
+            0b10101101: "SHR",
+            0b01010000: "CALL",
+            0b00010001: "RET",
+            0b01010010: "INT",
+            0b00010011: "IRET",
+            0b01010100: "JMP",
+            0b01010101: "JEQ",
+            0b01010110: "JNE",
+            0b01010111: "JGT",
+            0b01011000: "JLT",
+            0b01011001: "JLE",
+            0b01011010: "JGE",
+            0b00000000: "NOP",
+            0b00000001: "HLT",
+            0b10000010: "LDI",
+            0b10000011: "LD",
+            0b10000100: "ST",
+            0b01000101: "PUSH",
+            0b01000110: "POP",
+            0b01000111: "PRN",
+            0b01001000: "PRA",
+        }[opcode]
+
     def run(self):
         """Run the CPU."""
-        pass
+        ir = 0
+
+        asm = ""
+        
+        while asm != "HLT":
+            asm = self.opcode_to_asm(self.ram[ir])
+            
+            if asm == "LDI":
+                self.registers[self.ram[ir + 1]] = self.ram[ir + 2]
+                ir += 3
+            elif asm == "PRN":
+                print(self.registers[self.ram[ir + 1]])
+                ir += 2
