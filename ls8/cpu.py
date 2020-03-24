@@ -11,26 +11,33 @@ class CPU:
         self.registers = [0] * 8
         self.pc = None
 
-    def load(self):
+    def load(self, file_name):
         """Load a program into memory."""
 
         address = 0
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
+        file = open("examples/" + file_name)
+
+        for instruction in [x[:8] for x in file.read().split("\n")]:
+            if(instruction.strip() == ""):
+                continue
+
+            self.ram[address] = int(instruction, 2)
             address += 1
+
+        file.close()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -120,3 +127,10 @@ class CPU:
             elif asm == "PRN":
                 print(self.registers[self.ram[ir + 1]])
                 ir += 2
+            elif asm == "MUL":
+                self.registers[self.ram[ir + 1]] *= self.registers[self.ram[ir + 2]]
+                ir += 3
+
+c = CPU()
+c.load("mult.ls8")
+c.run()
