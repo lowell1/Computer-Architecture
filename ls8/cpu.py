@@ -114,23 +114,32 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        ir = 0
-
+        # ir = 0
+        pc = 0
         asm = ""
+        self.registers[6] = len(self.ram) - 1 #stack pointer
         
         while asm != "HLT":
-            asm = self.opcode_to_asm(self.ram[ir])
+            asm = self.opcode_to_asm(self.ram[pc])
             
             if asm == "LDI":
-                self.registers[self.ram[ir + 1]] = self.ram[ir + 2]
-                ir += 3
+                self.registers[self.ram[pc + 1]] = self.ram[pc + 2]
+                pc += 3
             elif asm == "PRN":
-                print(self.registers[self.ram[ir + 1]])
-                ir += 2
+                print(self.registers[self.ram[pc + 1]])
+                pc += 2
             elif asm == "MUL":
-                self.registers[self.ram[ir + 1]] *= self.registers[self.ram[ir + 2]]
-                ir += 3
+                self.registers[self.ram[pc + 1]] *= self.registers[self.ram[pc + 2]]
+                pc += 3
+            elif asm == "PUSH":
+                self.registers[6] -= 1
+                self.ram[self.registers[6]] = self.registers[self.ram[pc + 1]]
+                pc += 2
+            elif asm == "POP":
+                self.registers[self.ram[pc + 1]] = self.ram[self.registers[6]]
+                self.registers[6] += 1
+                pc += 2
 
 c = CPU()
-c.load("mult.ls8")
+c.load("stack.ls8")
 c.run()
