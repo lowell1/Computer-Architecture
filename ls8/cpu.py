@@ -8,13 +8,33 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0] * 256
-        self.registers = [0] * 8
-        # self.pc = 0
+        self.registers =\
+            {
+                # general purpose
+                0: 0, #R0
+                1: 0, #R1 ...
+                2: 0,
+                3: 0,
+                4: 0xF4, #F4 = empty stack
+                5: 0,  #interrupt mask (IM)
+                6: 0,  #interrupt status (IS)
+                7: 0,  #stack pointer (SP)
+
+                # internal
+                "PC": 0,
+                "IR": 0,
+                "MAR": 0,
+                "MDR": 0,
+                "FL": 0
+            }
+                # * `PC`: Program Counter, address of the currently executing instruction
+                # * `IR`: Instruction Register, contains a copy of the currently executing instruction
+                # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
+                # * `MDR`: Memory Data Register, holds the value to write or the value just read
+                # * `FL`: Flags, see below
 
     def load(self, file_name):
         """Load a program into memory."""
-
-        address = 0
 
         # For now, we've just hardcoded a program:
 
@@ -28,6 +48,7 @@ class CPU:
         #     0b00000001, # HLT
         # ]
 
+        address = 0
         file = open("examples/" + file_name)
 
         for instruction in [x[:8] for x in file.read().split("\n")]:
@@ -129,11 +150,8 @@ class CPU:
         pc = 0
         asm = ""
         self.registers[6] = len(self.ram) - 1 #stack pointer
-
-        i = 0
         
-        while asm != "HLT" and i < 30:
-            i += 1
+        while asm != "HLT":
             asm = self.opcode_to_asm(self.ram[pc])
             
             if self.is_alu_instruction(asm):
@@ -145,15 +163,6 @@ class CPU:
             elif asm == "PRN":
                 print(self.registers[self.ram[pc + 1]])
                 pc += 2
-            # elif asm == "ADD":
-            #     self.registers[self.ram[pc + 1]] += self.registers[self.ram[pc + 2]]
-            #     pc += 3
-            # elif asm == "SUB":
-            #     self.registers[self.ram[pc + 1]] -= self.registers[self.ram[pc + 2]]
-            #     pc += 3
-            # elif asm == "MUL":
-            #     self.registers[self.ram[pc + 1]] *= self.registers[self.ram[pc + 2]]
-            #     pc += 3
             elif asm == "PUSH":
                 self.registers[6] -= 1
                 self.ram[self.registers[6]] = self.registers[self.ram[pc + 1]]
@@ -173,5 +182,5 @@ class CPU:
                 pc = self.registers[self.ram[pc + 1]]
 
 c = CPU()
-c.load("call.ls8")
+c.load("print8.ls8")
 c.run()
