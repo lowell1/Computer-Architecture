@@ -15,6 +15,9 @@ class CPU:
 
         #internal registers
         self.flags = 0b00000000
+        self.pc = 0
+
+        self.disable_interrupts = False
 
     def load(self, file_name):
         """Load a program into memory."""
@@ -133,52 +136,119 @@ class CPU:
 
     def is_alu_instruction(self, asm):
         return asm in ["ADD", "SUB", "CMP", "MOD", "MUL", "DIV"]
+    def interrupt(self):
+        masked_interrupts = self.registers[4] & self.registers[5]
+
+        for i in range(8):
+            if masked_interrupts & (1 << i):
+                # Clear the bit in the IS register.
+                self.registers[5] &= ~(1 << i)
+
+                # The `PC` register is pushed on the stack.
+                self.registers[6] -= 1
+                self.ram[self.registers[6]] = self.pc
+                
+                # The `FL` register is pushed on the stack.
+                self.registers[6] -= 1
+                self.ram[self.registers[6]] = self.flags
+
+                # Registers R0-R6 are pushed on the stack in that order.
+                for i in range(6):
+                    self.registers[6] -= 1
+                    self.ram[self.registers[6]] = self.registers[i]
+
+                # The address (_vector_ in interrupt terminology) of the appropriate
+                # handler is looked up from the interrupt vector table.
+                # Set the PC is set to the handler address.
+                self.pc = self.ram[-(i + 1)]
+
+                break
+
+    def return_from_interrupt(self):
+        for i in range(5, -1, -1):
+            self.registers[i] = self.ram[self.registers[6]]
+            self.registers[6] += 1
+
+        self.flags = self.ram[self.registers[6]]
+        self.registers[6] += 1
+        self.pc = self.ram[self.registers[6]]
+
 
     def run(self):
         """Run the CPU."""
         asm = "" #mnemonic of opcode
-        pc = 0
         flags = 0
-       
-        while asm != "HLT":
-            asm = self.opcode_to_asm(self.ram[pc])
+
+        while asm != "HLT" :
+            if not self.disable_interrupts and self.registers[5]:
+                self.interrupt()
+                self.disable_interrupts = True
+
+            asm = self.opcode_to_asm(self.ram[self.pc])
             
             if self.is_alu_instruction(asm):
-                self.alu(asm, self.ram[pc + 1], self.ram[pc + 2])
-                pc += 3
+                self.alu(asm, self.ram[self.pc + 1], self.ram[self.pc + 2])
+                self.pc += 3
             elif asm == "LDI":
-                self.registers[self.ram[pc + 1]] = self.ram[pc + 2]
-                pc += 3
+                self.registers[self.ram[self.pc + 1]] = self.ram[self.pc + 2]
+                self.pc += 3
             elif asm == "PRN":
-                print(self.registers[self.ram[pc + 1]])
-                pc += 2
+                print(self.registers[self.ram[self.pc + 1]])
+                self.pc += 2
             elif asm == "PUSH":
                 self.registers[6] -= 1
-                self.ram[self.registers[6]] = self.registers[self.ram[pc + 1]]
-                pc += 2
+                self.ram[self.registers[6]] = self.registers[self.ram[self.pc + 1]]
+                self.pc += 2
             elif asm == "POP":
-                self.registers[self.ram[pc + 1]] = self.ram[self.registers[6]]
+                self.registers[self.ram[self.pc + 1]] = self.ram[self.registers[6]]
                 self.registers[6] += 1
-                pc += 2
+                self.pc += 2
             elif asm == "CALL":
                 self.registers[6] -= 1
-                self.ram[self.registers[6]] = pc + 2 #store the value of next instruction to return to
-                pc = self.registers[self.ram[pc + 1]]
+                self.ram[self.registers[6]] = self.pc + 2 #store the value of next instruction to return to
+                self.pc = self.registers[self.ram[self.pc + 1]]
             elif asm == "RET":
-                pc = self.ram[self.registers[6]]
+                self.pc = self.ram[self.registers[6]]
                 self.registers[6] += 1
             elif asm == "JMP":
-                pc = self.registers[self.ram[pc + 1]]
+                self.pc = self.registers[self.ram[self.pc + 1]]
             elif asm == "JEQ":
                 if self.flags & 1:
-                    pc = self.registers[self.ram[pc + 1]]
+                    self.pc = self.registers[self.ram[self.pc + 1]]
                 else:
-                    pc += 2
+                    self.pc += 2
             elif asm == "JNE":
                 if ~self.flags & 1:
-                   pc = self.registers[self.ram[pc + 1]]
+                   self.pc = self.registers[self.ram[self.pc + 1]]
                 else:
-                    pc += 2 
+                    self.pc += 2 
+            elif asm == "ST":
+                reg_a = self.ram[self.pc + 1]
+                reg_b = self.ram[self.pc + 2]
+                addr = self.registers[reg_a]
+
+                self.ram[addr] = self.registers[reg_b]
+                self.pc += 3
+            elif asm == "PRA":
+                reg = self.ram[self.pc + 1]
+                print(chr(self.register[reg]))
+                self.pc += 2
+            elif asm == "INT":
+                if not self.disable_interrupts:
+                    self.registers[5] |= self.ram[self.pc + 1]
+                    self.pc += 2
+                    self.interrupt()
+                    self.disable_interrupts = True
+            elif asm == "IRET":
+                self.return_from_interrupt()
+                self.disable_interrupts = False
+
+            # print("asm", asm)
+            # print("registers", self.registers)
+            # print("vector table", self.ram[0xF4:])
+            # print("stack:", self.ram[0xEA:])
+            # print("pc", self.pc)
+            # print()
 
 
 c = CPU()
