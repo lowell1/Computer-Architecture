@@ -8,30 +8,13 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0] * 256
-        self.registers =\
-            {
-                # general purpose
-                0: 0, #R0
-                1: 0, #R1 ...
-                2: 0,
-                3: 0,
-                4: 0xF4, #F4 = empty stack
-                5: 0,  #interrupt mask (IM)
-                6: 0,  #interrupt status (IS)
-                7: 0,  #stack pointer (SP)
+        
+        # general purpose registers
+        self.registers = [0] * 8
+        self.registers[6] = 0xF4
 
-                # internal
-                "PC": 0,
-                "IR": 0,
-                "MAR": 0,
-                "MDR": 0,
-                "FL": 0
-            }
-                # * `PC`: Program Counter, address of the currently executing instruction
-                # * `IR`: Instruction Register, contains a copy of the currently executing instruction
-                # * `MAR`: Memory Address Register, holds the memory address we're reading or writing
-                # * `MDR`: Memory Data Register, holds the value to write or the value just read
-                # * `FL`: Flags, see below
+        #internal registers
+        self.flags = 0b00000000
 
     def load(self, file_name):
         """Load a program into memory."""
@@ -65,15 +48,22 @@ class CPU:
 
         if op == "ADD":
             self.registers[reg_a] += self.registers[reg_b]
-        elif asm == "SUB":
+        elif op == "SUB":
             self.registers[reg_a] -= self.registers[reg_b]
-        elif asm == "MUL":
+        elif op == "MUL":
             self.registers[reg_a] *= self.registers[reg_b]
-        elif asm == "MOD":
+        elif op == "MOD":
             self.registers[reg_a] *= self.registers[reg_b]
-        # elif asm == "CMP":
-        #     self.reg[reg_a] *= self.reg[reg_b]
-        
+        elif op == "CMP":
+                # clear flags
+                self.flags &= 0b11111000
+
+                if self.registers[reg_a] < self.registers[reg_b]:
+                    self.flags |= 1 << 2
+                elif self.registers[reg_a] > self.registers[reg_b]:
+                    self.flags |= 1 << 1
+                else:
+                    self.flags |= 1    
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -146,11 +136,10 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        # ir = 0
+        asm = "" #mnemonic of opcode
         pc = 0
-        asm = ""
-        self.registers[6] = len(self.ram) - 1 #stack pointer
-        
+        flags = 0
+       
         while asm != "HLT":
             asm = self.opcode_to_asm(self.ram[pc])
             
@@ -180,7 +169,18 @@ class CPU:
                 self.registers[6] += 1
             elif asm == "JMP":
                 pc = self.registers[self.ram[pc + 1]]
+            elif asm == "JEQ":
+                if self.flags & 1:
+                    pc = self.registers[self.ram[pc + 1]]
+                else:
+                    pc += 2
+            elif asm == "JNE":
+                if ~self.flags & 1:
+                   pc = self.registers[self.ram[pc + 1]]
+                else:
+                    pc += 2 
+
 
 c = CPU()
-c.load("print8.ls8")
+c.load("sprint.ls8")
 c.run()
